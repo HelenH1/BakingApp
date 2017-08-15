@@ -1,0 +1,265 @@
+/*
+ * Copyright (C) 2016 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package com.example.android.sunshine;
+
+import android.content.ContentValues;
+import android.content.Context;
+import android.database.Cursor;
+import android.support.annotation.NonNull;
+import android.support.v4.media.session.MediaSessionCompat;
+import android.support.v4.media.session.PlaybackStateCompat;
+import android.support.v7.widget.RecyclerView;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.ImageView;
+import android.widget.TextView;
+
+import com.google.android.exoplayer2.ui.SimpleExoPlayerView;
+import com.squareup.picasso.Picasso;
+
+import com.google.android.exoplayer2.ExoPlaybackException;
+import com.google.android.exoplayer2.ExoPlayer;
+import com.google.android.exoplayer2.ExoPlayerFactory;
+import com.google.android.exoplayer2.SimpleExoPlayer;
+import com.google.android.exoplayer2.Timeline;
+import com.google.android.exoplayer2.extractor.DefaultExtractorsFactory;
+import com.google.android.exoplayer2.source.ExtractorMediaSource;
+import com.google.android.exoplayer2.source.MediaSource;
+import com.google.android.exoplayer2.source.TrackGroupArray;
+import com.google.android.exoplayer2.trackselection.DefaultTrackSelector;
+import com.google.android.exoplayer2.trackselection.TrackSelectionArray;
+import com.google.android.exoplayer2.trackselection.TrackSelector;
+import com.google.android.exoplayer2.upstream.DefaultDataSourceFactory;
+import com.google.android.exoplayer2.util.Util;
+
+import org.w3c.dom.Text;
+
+import butterknife.BindView;
+
+import static android.content.ContentValues.TAG;
+
+public class RecipeStepAdapter extends RecyclerView.Adapter<RecipeStepAdapter.StepViewHolder> {
+
+    private static final int VIEW_TYPE_TODAY = 0;
+    private static final int VIEW_TYPE_FUTURE_DAY = 1;
+
+    /* The context we use to utility methods, app resources and layout inflaters */
+    private final Context mContext;
+    private ContentValues mInstructions;
+
+    /*
+     * Below, we've defined an interface to handle clicks on items within this Adapter. In the
+     * constructor of our ForecastAdapter, we receive an instance of a class that has implemented
+     * said interface. We store that instance in this variable to call the onClick method whenever
+     * an item is clicked in the list.
+     */
+    final private StepAdapterOnClickHandler mClickHandler;
+
+    /**
+     * The interface that receives onClick messages.
+     */
+    public interface StepAdapterOnClickHandler {
+        void onClick(int position, ContentValues stepVals);
+    }
+
+    /*
+     * Flag to determine if we want to use a separate view for the list item that represents
+     * today. This flag will be true when the phone is in portrait mode and false when the phone
+     * is in landscape. This flag will be set in the constructor of the adapter by accessing
+     * boolean resources.
+     */
+    private boolean mUseTodayLayout;
+
+    //private Cursor mCursor;
+
+    /**
+     * Creates a ForecastAdapter.
+     *
+     * @param context      Used to talk to the UI and app resources
+     * @param clickHandler The on-click handler for this adapter. This single handler is called
+     *                     when an item is clicked.
+     */
+    public RecipeStepAdapter(@NonNull Context context, StepAdapterOnClickHandler clickHandler) {
+        mContext = context;
+        mClickHandler = clickHandler;
+        //mUseTodayLayout = mContext.getResources().getBoolean(R.bool.use_today_layout);
+    }
+
+    /**
+     * This gets called when each new ViewHolder is created. This happens when the RecyclerView
+     * is laid out. Enough ViewHolders will be created to fill the screen and allow for scrolling.
+     *
+     * @param viewGroup The ViewGroup that these ViewHolders are contained within.
+     * @param viewType  If your RecyclerView has more than one type of item (like ours does) you
+     *                  can use this viewType integer to provide a different layout. See
+     *                  {@link android.support.v7.widget.RecyclerView.Adapter#getItemViewType(int)}
+     *                  for more details.
+     * @return A new ForecastAdapterViewHolder that holds the View for each list item
+     */
+    @Override
+    public StepViewHolder onCreateViewHolder(ViewGroup viewGroup, int viewType) {
+        //System.out.println("View holder created.");
+
+        int layoutId;
+        layoutId = R.layout.step_list_item;
+
+        View view = LayoutInflater.from(mContext).inflate(layoutId, viewGroup, false);
+
+        view.setFocusable(true);
+
+        return new StepViewHolder(view);
+    }
+
+    /**
+     * OnBindViewHolder is called by the RecyclerView to display the data at the specified
+     * position. In this method, we update the contents of the ViewHolder to display the weather
+     * details for this particular position, using the "position" argument that is conveniently
+     * passed into us.
+     *
+     * @param stepViewHolder The ViewHolder which should be updated to represent the
+     *                       contents of the item at the given position in the data set.
+     * @param position       The position of the item within the adapter's data set.
+     */
+    @Override
+    public void onBindViewHolder(StepViewHolder stepViewHolder, int position) {
+        //System.out.println("Binding image to ViewHolder");
+        //mCursor.moveToPosition(position);
+
+        //System.out.println("Contains key: "+mBasicMovieInfo[position].containsKey("movie_poster_path"));
+        //String name = mBasicMovieInfo[position].getAsString("name");
+        //String servings = mBasicMovieInfo[position].getAsString("servings");
+        //System.out.println("Poster path: "+posterPath);
+        //stepViewHolder.nameView.setText(name);
+        //stepViewHolder.servings.setText(servings);
+
+        String shortDescrip = mInstructions.getAsString("shortDescription" + position);
+        String descrip = mInstructions.getAsString("description" + position);
+        String vidurl = mInstructions.getAsString("videoURL" + position);
+        String thumburl = mInstructions.getAsString("thumbnailURL" + position);
+
+        stepViewHolder.descriptionView.setText(shortDescrip);
+        stepViewHolder.longDesc.setText(descrip);
+        if(vidurl.length()>0) stepViewHolder.vidAvail.setText("Click for video!");
+
+        if(thumburl.length()>0) Picasso.with(mContext).load(thumburl).into(stepViewHolder.stepPhotoView);
+
+
+    }
+
+    /**
+     * This method simply returns the number of items to display. It is used behind the scenes
+     * to help layout our Views and for animations.
+     *
+     * @return The number of items available in our forecast
+     */
+    @Override
+    public int getItemCount() {
+
+        //if (mBasicMovieInfo == null) return 0;
+        //return mBasicMovieInfo.length;
+        return 1;
+    }
+
+    /**
+     * Returns an integer code related to the type of View we want the ViewHolder to be at a given
+     * position. This method is useful when we want to use different layouts for different items
+     * depending on their position. In Sunshine, we take advantage of this method to provide a
+     * different layout for the "today" layout. The "today" layout is only shown in portrait mode
+     * with the first item in the list.
+     *
+     * @param position index within our RecyclerView and Cursor
+     * @return the view type (today or future day)
+     */
+    @Override
+    public int getItemViewType(int position) {
+        if (mUseTodayLayout && position == 0) {
+            return VIEW_TYPE_TODAY;
+        } else {
+            return VIEW_TYPE_FUTURE_DAY;
+        }
+    }
+
+    /**
+     * Swaps the cursor used by the ForecastAdapter for its weather data. This method is called by
+     * MainActivity after a load has finished, as well as when the Loader responsible for loading
+     * the weather data is reset. When this method is called, we assume we have a completely new
+     * set of data, so we call notifyDataSetChanged to tell the RecyclerView to update.
+     *
+     * @param newCursor the new cursor to use as ForecastAdapter's data source
+     */
+
+    /**
+     * A ViewHolder is a required part of the pattern for RecyclerViews. It mostly behaves as
+     * a cache of the child views for a forecast item. It's also a convenient place to set an
+     * OnClickListener, since it has access to the adapter and the views.
+     */
+    class StepViewHolder extends RecyclerView.ViewHolder implements View.OnClickListener {
+        TextView descriptionView;
+        ImageView stepPhotoView;
+        TextView vidAvail;
+        TextView longDesc;
+        public MediaSessionCompat mMediaSession;
+        private PlaybackStateCompat.Builder mStateBuilder;
+
+
+
+        StepViewHolder(View view) {
+            super(view);
+
+            descriptionView = (TextView) view.findViewById(R.id.tv_step_desc);
+            stepPhotoView = (ImageView) view.findViewById(R.id.iv_step_img);
+            vidAvail = (TextView) view.findViewById(R.id.tv_video_available);
+            longDesc = (TextView) view.findViewById(R.id.tv_step_desc_full);
+
+            view.setOnClickListener(this);
+        }
+
+        /**
+         * This gets called by the child views during a click. We fetch the date that has been
+         * selected, and then call the onClick handler registered with this adapter, passing that
+         * date.
+         *
+         * @param v the View that was clicked
+         */
+        @Override
+        public void onClick(View v) {
+            int adapterPosition = getAdapterPosition();
+
+
+
+            //mCursor.moveToPosition(adapterPosition);
+            //long dateInMillis = mCursor.getLong(MainActivity.INDEX_WEATHER_DATE);
+            //mClickHandler.onClick(dateInMillis);
+
+
+            //ContentValues weatherForDay = mInstructions[adapterPosition];
+            //mClickHandler.onClick(weatherForDay);
+        }
+
+    }
+
+    public void setBasicMovieInfo(ContentValues basicMovieData) {
+        mInstructions = basicMovieData;
+        //System.out.println("Movie info set");
+        notifyDataSetChanged();
+        //System.out.println("Movie info size is "+basicMovieData.length);
+    }
+
+
+
+
+}
